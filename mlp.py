@@ -1,29 +1,33 @@
 import numpy as np
+import pickle
+
 
 class MLP:
-    def __init__(self, layers ,bias = True):
+    def __init__(self, layers ,use_bias = True):
         self.layers = layers
-        self.bias = bias
+        self.use_bias = use_bias
         self.weights = []
         self.biases = []
 
         for i in range(len(layers) - 1):
-            weight = np.random.uniform(-0.5, 0.5, (layers[i + 1], layers[i]))
+            weight = np.random.uniform(-1, 1, (layers[i + 1], layers[i]))
             self.weights.append(weight)
-            bias = np.random.uniform(-0.5, 0.5, (layers[i + 1], 1)) if bias else None
+            bias = np.random.uniform(-1, 1, (layers[i + 1], 1)) if use_bias else None
             self.biases.append(bias)
+    
     @staticmethod
-    def sigmoid(x):
+    def sigmoid(x:float) -> float:
         return 1 / (1 + np.exp(-x))
     
     @staticmethod
-    def sigmoid_derivative(x):
+    def sigmoid_derivative(x:float) -> float:
         sx = MLP.sigmoid(x)
         return sx * (1 - sx)
     
-    def forward(self, x):
+    def forward(self, x:np.array):
         activations = [x.reshape(-1, 1)]
         zs = []
+        
         for i in range(len(self.weights)):
             z = np.dot(self.weights[i], activations[-1])
             if self.use_bias:
@@ -42,6 +46,7 @@ class MLP:
         for i in reversed(range(len(zs) - 1)):
             delta = np.dot(self.weights[i + 1].T, deltas[-1]) * MLP.sigmoid_derivative(zs[i])
             deltas.append(delta)
+
         deltas.reverse()
 
         for i in range(len(self.weights)):
@@ -54,4 +59,36 @@ class MLP:
             for x, y in zip(X, Y):
                 self.backward(x, y, learning_rate)
 
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump((self.weights, self.biases, self.layers, self.use_bias), f)
+
+    @staticmethod
+    def load(filename):
+        with open(filename, 'rb') as f:
+            weights, biases, layers, use_bias = pickle.load(f)
+            mlp = MLP(layers, use_bias)
+            mlp.weights = weights
+            mlp.biases = biases
+            return mlp
+
+    @staticmethod
+    def load_dataset(filename:str) -> (np.array,np.array):
+        X = []
+        Y = []
+        with open(filename, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue  
+                try:
+                    x_part, y_part = line.split()
+                    x_vals = [float(v) for v in x_part.split(',')]
+                    y_vals = [float(v) for v in y_part.split(',')]
+                    X.append(x_vals)
+                    Y.append(y_vals)
+                except ValueError as e:
+                    raise ValueError(f"Nieprawidłowy format wiersza: {line}") from e
+        return np.array(X), np.array(Y)
+    
     
