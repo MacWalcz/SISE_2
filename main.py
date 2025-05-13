@@ -3,26 +3,47 @@ import numpy as np
 import pandas as pd
 
 def main():
-    neat = MLP((4,4,4), use_bias= True)
-    X , Y = MLP.load_dataset( "SISE_2/autoenkoder.txt")
-   
-    neat.train(X,Y,epochs=1000,learning_rate=0.1, momentum=0.95)
-    cos, innecos = neat.forward(np.array([1,0,0,0]))
-    print(f"wynik dla (1,0,0,0): \n {cos[-1]} ")
-    cos, innecos = neat.forward(np.array([0,1,0,0]))
-    print(f"wynik dla (0,1,0,0): \n  {cos[-1]} ")
-    cos, innecos = neat.forward(np.array([0,0,1,0]))
-    print(f"wynik dla (0,0,1,0): \n  {cos[-1]} ")
-    cos, innecos = neat.forward(np.array([0,0,0,1]))
-    print(f"wynik dla (0,0,0,1): \n  {cos[-1]} ")
+    X, Y = MLP.load_dataset("SISE_2/autoenkoder.txt")
+
+    for use_bias in [True, False]:
+        print(f"\n=== Training with use_bias={use_bias} ===")
+        model = MLP(layers=(4, 2, 4), use_bias=use_bias)
+        model.train(X, Y, epochs=1000, learning_rate=0.6, momentum=0.0)
+        for inp in X:
+            activations, zs = model.forward(inp)
+            hidden = activations[1].flatten()
+            out = activations[-1].flatten()
+            print(f"Input: {inp}  Hidden: {hidden}  Output: {out}")
+
+  
+
+    combos = [(0.9, 0.0),(0.6, 0.0),(0.2, 0.0),(0.9, 0.6),(0.2, 0.9)]
+    print("\n=== Training speed experiments (use_bias=True) ===")
+    for lr, mom in combos:
+        model = MLP(layers=(4, 2, 4), use_bias=True)
+        tol = 1e-3
+        max_epochs = 5000
+        for epoch in range(1, max_epochs+1):
+            model.train(X, Y, epochs=1, learning_rate=lr, momentum=mom)
+            mse = 0
+            for inp, target in zip(X, Y):
+                out, _ = model.forward(inp)
+                diff = out[-1] - target.reshape(-1,1)
+                mse += np.mean(diff**2)
+            mse /= len(X)
+            if mse < tol:
+                print(f"lr={lr}, mom={mom} -> converged in {epoch} epochs (MSE={mse:.5f})")
+                break
+        else:
+            print(f"lr={lr}, mom={mom} -> no convergence (final MSE={mse:.5f})\n")
 
 
     model = MLP(layers=(4, 5, 3), use_bias=True)
    
 
-    X, Y = MLP.load_iris('SISE_2/iris.data')  # X:(150,4), Y:(150,3)
+    X, Y = MLP.load_iris('SISE_2/iris.data')  
 
-    # 2) Shuffle + split 80/20
+    # Shuffle + split 80/20
     np.random.seed(32)
     perm = np.random.permutation(len(X))
     X, Y = X[perm], Y[perm]
@@ -30,31 +51,31 @@ def main():
     X_train, X_test = X[:split], X[split:]
     Y_train, Y_test = Y[:split], Y[split:]
 
-    # 3) Normalizacja według X_train
+    # Normalizacja według X_train
     mean = X_train.mean(axis=0, keepdims=True)
     std  = X_train.std(axis=0, keepdims=True)
     std[std == 0] = 1.0
     X_train = (X_train - mean) / std
-    X_test  = (X_test  - mean) / std
+    X_test = (X_test - mean) / std
 
-    model.train(X_train, Y_train,epochs=1000,learning_rate=0.01,momentum=0.9)
+    model.train(X_train, Y_train,epochs=1000,learning_rate=0.1,momentum=0.80)
 
-    # 5) Predykcje na zbiorze testowym
+    # Predykcje na zbiorze testowym
     class_names = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
     y_true = []
     y_pred = []
     for x, y_vec in zip(X_test, Y_test):
         activations, _ = model.forward(x)
         probs    = activations[-1].flatten()
-        pred_idx = np.argmax(probs)      # <-- obliczamy tutaj
-        true_idx = np.argmax(y_vec)      # <-- i tutaj
+        pred_idx = np.argmax(probs)     
+        true_idx = np.argmax(y_vec)     
 
         y_pred.append(pred_idx)
         y_true.append(true_idx)
 
-        print(f"Data:      {x.tolist()}")
+        print(f"Data: {x.tolist()}")
         print(f"Predicted: {class_names[pred_idx]}  ({pred_idx})")
-        print(f"Actual:    {class_names[true_idx]}  ({true_idx})")
+        print(f"Actual: {class_names[true_idx]}  ({true_idx})")
         print("---")
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -76,8 +97,8 @@ def main():
     print("\nCorrect by class:")
     for i, cname in enumerate(class_names):
         correct_i = confusion[i, i]
-        total_i   = confusion[i, :].sum()
-        print(f"  {cname}: {correct_i}/{total_i}")
+        total_i = confusion[i, :].sum()
+        print(f"{cname}: {correct_i}/{total_i}")
 
     # Precision, Recall, F-measure
     precision = []
@@ -94,11 +115,7 @@ def main():
         recall.append(r)
         f_score.append(f1)
 
-    metrics_df = pd.DataFrame({
-        "Precision": precision,
-        "Recall": recall,
-        "F-measure": f_score
-    }, index=class_names)
+    metrics_df = pd.DataFrame({"Precision": precision,"Recall": recall,"F-measure": f_score}, index=class_names)
     print("\nPer-Class Metrics:")
     print(metrics_df)
 
