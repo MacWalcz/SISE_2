@@ -8,12 +8,17 @@ class MLP:
         self.use_bias = use_bias
         self.weights = []
         self.biases = []
+      
 
         for i in range(len(layers) - 1):
             weight = np.random.uniform(-1, 1, (layers[i + 1], layers[i]))
             self.weights.append(weight)
             bias = np.random.uniform(-1, 1, (layers[i + 1], 1)) if use_bias else None
             self.biases.append(bias)
+
+        self.v_w= [np.zeros_like(W) for W in self.weights]
+        if self.use_bias:
+            self.v_b = [np.zeros_like(b) for b in self.biases]
     
     @staticmethod
     def sigmoid(x:float) -> float:
@@ -37,7 +42,7 @@ class MLP:
             activations.append(a)
         return activations, zs
 
-    def backward(self, x, y, learning_rate):
+    def backward(self, x, y):
         activations, zs = self.forward(x)
         y = y.reshape(-1, 1)
         delta = (activations[-1] - y) * MLP.sigmoid_derivative(zs[-1])
@@ -49,15 +54,29 @@ class MLP:
 
         deltas.reverse()
 
-        for i in range(len(self.weights)):
-            self.weights[i] -= learning_rate * np.dot(deltas[i], activations[i].T)
-            if self.use_bias:
-                self.biases[i] -= learning_rate * deltas[i]
+        dW, dB = [], []
 
-    def train(self, X, Y, epochs=1000, learning_rate=0.1):
+        for i in range(len(self.weights)):
+           a_previous = activations[i] if i > 0 else x.reshape(-1, 1)
+           dW.append(deltas[i] @ a_previous.T)
+           dB.append(deltas[i])
+
+        return dW, dB
+
+    def train(self, X, Y, epochs=1000, learning_rate=0.1, momentum=0.9):
         for epoch in range(epochs):
             for x, y in zip(X, Y):
-                self.backward(x, y, learning_rate)
+                dw, db = self.backward(x, y)
+                for i in range(len(self.weights)):
+                    self.v_w[i] = momentum * self.v_w[i] - learning_rate * dw[i]
+                    self.weights[i] += self.v_w[i]
+                
+                    if self.use_bias:
+                        self.v_b[i] = momentum * self.v_b[i] - learning_rate * db[i]
+                        self.biases[i] += self.v_b[i]
+
+            
+                    
 
     def save(self, filename):
         with open(filename, 'wb') as f:
