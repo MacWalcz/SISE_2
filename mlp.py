@@ -110,4 +110,26 @@ class MLP:
                     raise ValueError(f"Nieprawidłowy format wiersza: {line}") from e
         return np.array(X), np.array(Y)
     
-    
+    @staticmethod
+    def load_iris(filename: str) -> tuple[np.ndarray, np.ndarray]:
+        X, labels = [], []
+        with open(filename) as f:
+            for line in f:
+                parts = line.strip().split(',')
+                if len(parts) != 5: 
+                    continue
+                feats = [float(v) for v in parts[:4]]
+                cls = parts[4]
+                X.append(feats)
+                labels.append(cls)
+        X = np.array(X, dtype=np.float32)
+
+        uniques = sorted(set(labels))
+        str2idx = {s:i for i,s in enumerate(uniques)}
+        y_idx = np.array([str2idx[s] for s in labels], dtype=int)
+
+        Y = np.zeros((len(y_idx), len(uniques)), dtype=np.float32)
+        Y[np.arange(len(y_idx)), y_idx] = 1.0
+
+        return X, Y
+
