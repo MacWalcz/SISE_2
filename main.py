@@ -3,12 +3,23 @@ import numpy as np
 import pandas as pd
 
 def main():
+   
     X, Y = MLP.load_dataset("SISE_2/autoenkoder.txt")
-
+    
     for use_bias in [True, False]:
         print(f"\n=== Training with use_bias={use_bias} ===")
         model = MLP(layers=(4, 2, 4), use_bias=use_bias)
-        model.train(X, Y, epochs=1000, learning_rate=0.6, momentum=0.0)
+        epochs = 1000
+        lr = 0.6
+        mom = 0.0
+
+        # Train with shuffle each epoch
+        for epoch in range(epochs):
+            perm = np.random.permutation(len(X))
+            X_sh, Y_sh = X[perm], Y[perm]
+            model.train(X_sh, Y_sh, epochs=1, learning_rate=lr, momentum=mom)
+
+        # After training, print hidden and output activations
         for inp in X:
             activations, zs = model.forward(inp)
             hidden = activations[1].flatten()
