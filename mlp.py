@@ -92,7 +92,7 @@ class MLP:
             return mlp
 
     @staticmethod
-    def load_dataset(filename:str) -> (np.array,np.array):
+    def load_dataset(filename:str) -> tuple[np.array,np.array]:
         X = []
         Y = []
         with open(filename, 'r') as f:
