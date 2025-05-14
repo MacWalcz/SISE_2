@@ -16,6 +16,7 @@ def plot_loss_from_file(filename):
                 losses.append(float(loss_str))
 
     # Tworzenie wykresu
+    plt.ylim(bottom=0)
     plt.figure(figsize=(10, 6))
     plt.plot(epochs, losses, marker='o', linestyle='-', color='blue')
     plt.title('MSE w czasie epok')
