@@ -1,134 +1,101 @@
 from mlp import *
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+def plot_loss_from_file(filename):
+    epochs = []
+    losses = []
+
+    # Wczytanie danych z pliku
+    with open(filename, 'r') as f:
+        for line in f:
+            if ',' in line:
+                epoch_str, loss_str = line.strip().split(',')
+                epochs.append(int(epoch_str))
+                losses.append(float(loss_str))
+
+    # Tworzenie wykresu
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, losses, marker='o', linestyle='-', color='blue')
+    plt.title('MSE w czasie epok')
+    plt.xlabel('Epoka')
+    plt.ylabel('MSE (Błąd średniokwadratowy)')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+def print_menu():
+        print("\n=== MENU ===")
+        print("1. Stwórz nową sieć")
+        print("2. Wczytaj sieć z pliku")
+        print("3. Wyjście ")
+        print("==============")
+
+def use_menu(mlp:MLP):
+    while True:
+        print("\n=== MENU ===")
+        print("1. Tryb nauki ")
+        print("2. Tryb testowania ")
+        print("3. Zapisz sieć")
+        print("4. Wyświetl wykres z pliku otrzymanego z nauki sieci")
+        print("5. Wyjście ")
+        print("==============")
+        choice = input("Wybierz opcję: ").strip()
+
+        if choice == '1':
+            mlp.training_mode()
+        elif choice == '2':
+            mlp.testing_mode()
+        elif choice == '3':
+            filename = input("Podaj nazwe pliku do zapisu sieci... ")
+            mlp.save(filename)
+        elif choice =='4':
+            filename = input("Podaj nazwe pliku do wyświetlenia ")
+            plot_loss_from_file(filename)
+        elif choice == '5':
+            print("Zakończono program.")
+            break
+        else:
+            print("Niepoprawny wybór, spróbuj ponownie.")
+    
 
 def main():
-   
-    X, Y = MLP.load_dataset("SISE_2/autoenkoder.txt")
-    
-    for use_bias in [True, False]:
-        print(f"\n=== Training with use_bias={use_bias} ===")
-        model = MLP(layers=(4, 2, 4), use_bias=use_bias)
-        epochs = 1000
-        lr = 0.6
-        mom = 0.0
 
-        # Train with shuffle each epoch
-        for epoch in range(epochs):
-            perm = np.random.permutation(len(X))
-            X_sh, Y_sh = X[perm], Y[perm]
-            model.train(X_sh, Y_sh, epochs=1, learning_rate=lr, momentum=mom)
+    while True:
+        print_menu()
+        choice = input("Wybierz opcję: ").strip()
 
-        # After training, print hidden and output activations
-        for inp in X:
-            activations, zs = model.forward(inp)
-            hidden = activations[1].flatten()
-            out = activations[-1].flatten()
-            print(f"Input: {inp}  Hidden: {hidden}  Output: {out}")
+        if choice == '1':
+            layers:int = int(input("Ile warstw ma mieć sieć? ").strip())
+            neurons = []
+            for i in range(layers):
+                count:int = int(input(f"Podaj liczbe neuronów w warstwie nr {i+1} (1 to wejściowa) "))
+                neurons.append(count)
+            print("Czy zaanicjować Biasy?")
+            print("1. Tak")
+            print("2. Nie")
+            bias =int( input(f"Wybierz... "))
+            if bias == 1:
+                bias = True
+            elif bias == 2:
+                bias = False
+            else:
+                print("zly wybor")
+            mlp = MLP(tuple(neurons),bias)
+            use_menu(mlp)
 
-  
-
-    combos = [(0.9, 0.0),(0.6, 0.0),(0.2, 0.0),(0.9, 0.6),(0.2, 0.9)]
-    print("\n=== Training speed experiments (use_bias=True) ===")
-    for lr, mom in combos:
-        model = MLP(layers=(4, 2, 4), use_bias=True)
-        tol = 1e-3
-        max_epochs = 5000
-        for epoch in range(1, max_epochs+1):
-            model.train(X, Y, epochs=1, learning_rate=lr, momentum=mom)
-            mse = 0
-            for inp, target in zip(X, Y):
-                out, _ = model.forward(inp)
-                diff = out[-1] - target.reshape(-1,1)
-                mse += np.mean(diff**2)
-            mse /= len(X)
-            if mse < tol:
-                print(f"lr={lr}, mom={mom} -> converged in {epoch} epochs (MSE={mse:.5f})")
-                break
+        elif choice == '2':
+            filename =  input("Podaj nazwe pliku ")
+            mlp = MLP.load(filename)
+            use_menu(mlp)
+        elif choice == '3':
+            print("Zakończono program.")
+            break
         else:
-            print(f"lr={lr}, mom={mom} -> no convergence (final MSE={mse:.5f})\n")
+            print("Niepoprawny wybór, spróbuj ponownie.")
 
 
-    model = MLP(layers=(4, 5, 3), use_bias=True)
-   
 
-    X, Y = MLP.load_iris('SISE_2/iris.data')  
-
-    # Shuffle + split 80/20
-    np.random.seed(32)
-    perm = np.random.permutation(len(X))
-    X, Y = X[perm], Y[perm]
-    split = int(0.8 * len(X))
-    X_train, X_test = X[:split], X[split:]
-    Y_train, Y_test = Y[:split], Y[split:]
-
-    # Normalizacja według X_train
-    mean = X_train.mean(axis=0, keepdims=True)
-    std  = X_train.std(axis=0, keepdims=True)
-    std[std == 0] = 1.0
-    X_train = (X_train - mean) / std
-    X_test = (X_test - mean) / std
-
-    model.train(X_train, Y_train,epochs=1000,learning_rate=0.1,momentum=0.80)
-
-    # Predykcje na zbiorze testowym
-    class_names = ['Iris-setosa', 'Iris-versicolor', 'Iris-virginica']
-    y_true = []
-    y_pred = []
-    for x, y_vec in zip(X_test, Y_test):
-        activations, _ = model.forward(x)
-        probs    = activations[-1].flatten()
-        pred_idx = np.argmax(probs)     
-        true_idx = np.argmax(y_vec)     
-
-        y_pred.append(pred_idx)
-        y_true.append(true_idx)
-
-        print(f"Data: {x.tolist()}")
-        print(f"Predicted: {class_names[pred_idx]}  ({pred_idx})")
-        print(f"Actual: {class_names[true_idx]}  ({true_idx})")
-        print("---")
-    y_true = np.array(y_true)
-    y_pred = np.array(y_pred)
-
-    # Confusion matrix
-    num_classes = len(class_names)
-    confusion = np.zeros((num_classes, num_classes), dtype=int)
-    for t, p in zip(y_true, y_pred):
-        confusion[t, p] += 1
-    conf_df = pd.DataFrame(confusion, index=class_names, columns=class_names)
-    print("\nConfusion Matrix:")
-    print(conf_df)
-
-    # Liczba poprawnych sklasyfikacji
-    total_correct = (y_true == y_pred).sum()
-    total = len(y_true)
-    print(f"\nTotal correct: {total_correct}/{total} ({100 * total_correct/total:.2f}%)")
-
-    print("\nCorrect by class:")
-    for i, cname in enumerate(class_names):
-        correct_i = confusion[i, i]
-        total_i = confusion[i, :].sum()
-        print(f"{cname}: {correct_i}/{total_i}")
-
-    # Precision, Recall, F-measure
-    precision = []
-    recall    = []
-    f_score  = []
-    for i in range(num_classes):
-        tp = confusion[i, i]
-        fp = confusion[:, i].sum() - tp
-        fn = confusion[i, :].sum() - tp
-        p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
-        precision.append(p)
-        recall.append(r)
-        f_score.append(f1)
-
-    metrics_df = pd.DataFrame({"Precision": precision,"Recall": recall,"F-measure": f_score}, index=class_names)
-    print("\nPer-Class Metrics:")
-    print(metrics_df)
 
 if __name__ == '__main__':
     main()
